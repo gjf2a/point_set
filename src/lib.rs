@@ -2,7 +2,7 @@ use bits::BitArray;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct PointSet {
-    members: BitArray
+    members: BitArray,
 }
 
 impl PointSet {
@@ -20,7 +20,17 @@ impl PointSet {
     }
 
     pub fn union(&self, other: &Self) -> Self {
-        Self {members: &self.members | &other.members}
+        Self {
+            members: &self.members | &other.members,
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (i64, i64)> + '_ {
+        self.members
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| *t)
+            .map(|(i, _)| cantor_unpairing(i as u64))
     }
 }
 
@@ -28,7 +38,15 @@ impl PointSet {
 fn cantor_pairing(x: i64, y: i64) -> u64 {
     let x = naturalize(x);
     let y = naturalize(y);
-    (x.pow(2) + 3*x + 2*x*y + y + y.pow(2)) / 2
+    (x.pow(2) + x + 2 * x * y + 3 * y + y.pow(2)) / 2
+}
+
+fn cantor_unpairing(z: u64) -> (i64, i64) {
+    let w = ((((8 * z + 1) as f64).sqrt() - 1.0) / 2.0).floor() as u64;
+    let t = (w.pow(2) + w) / 2;
+    let y = z - t;
+    let x = w - y;
+    (denaturalize(x), denaturalize(y))
 }
 
 fn naturalize(n: i64) -> u64 {
@@ -39,6 +57,16 @@ fn naturalize(n: i64) -> u64 {
     base as u64
 }
 
+fn denaturalize(n: u64) -> i64 {
+    let rem = n % 2;
+    let abs = ((n + rem) / 2) as i64;
+    if rem == 1 {
+        -abs
+    } else {
+        abs
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -47,6 +75,7 @@ mod tests {
     fn test_naturalize() {
         for (n, expected) in [(0, 0), (-1, 1), (1, 2), (-2, 3), (2, 4), (-3, 5), (3, 6)] {
             assert_eq!(naturalize(n), expected);
+            assert_eq!(denaturalize(expected), n);
         }
     }
 
@@ -54,9 +83,31 @@ mod tests {
     fn test_pairing() {
         for ((x, y), expected) in [
             ((0, 0), 0),
-            ((1, 0), 5),
+            ((0, 1), 5),
+            ((0, 0), 0),
+            ((-1, 0), 1),
+            ((0, -1), 2),
+            ((1, 0), 3),
+            ((-1, -1), 4),
+            ((0, 1), 5),
+            ((-2, 0), 6),
+            ((1, -1), 7),
+            ((-1, 1), 8),
+            ((0, -2), 9),
+            ((2, 0), 10),
+            ((-2, -1), 11),
+            ((1, 1), 12),
+            ((-1, -2), 13),
+            ((0, 2), 14),
+            ((-3, 0), 15),
+            ((2, -1), 16),
+            ((-2, 1), 17),
+            ((1, -2), 18),
+            ((-1, 2), 19),
+            ((0, -3), 20),
         ] {
             assert_eq!(expected, cantor_pairing(x, y));
+            assert_eq!(cantor_unpairing(expected), (x, y));
         }
     }
 
@@ -91,7 +142,10 @@ mod tests {
 
         for x in -1000..=1000 {
             for y in -2000..=2000 {
-                assert_eq!(point_set.contains(x, y), x_range.contains(&x) && y_range.contains(&y));
+                assert_eq!(
+                    point_set.contains(x, y),
+                    x_range.contains(&x) && y_range.contains(&y)
+                );
             }
         }
 
