@@ -18,6 +18,10 @@ impl PointSet {
     pub fn len(&self) -> u64 {
         self.members.count_bits_on()
     }
+
+    pub fn union(&self, other: &Self) -> Self {
+        Self {members: &self.members | &other.members}
+    }
 }
 
 /// See http://szudzik.com/ElegantPairing.pdf for the formula
